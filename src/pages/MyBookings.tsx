@@ -1,40 +1,33 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { Phone, PackageSearch, Search, Inbox } from 'lucide-react'
-import { phoneSearchSchema, type PhoneSearchValues } from '../lib/validators'
-import { getBookingsByPhone } from '../lib/bookingService'
+import { useState, useEffect } from 'react'
+import { PackageSearch, Inbox } from 'lucide-react'
+import { getBookingsByUserId } from '../lib/bookingService'
 import type { Booking } from '../types'
 import BookingCard from '../components/BookingCard'
 import { CardSkeleton } from '../components/LoadingSkeleton'
-import ValidationError from '../components/ValidationError'
+import { useAuth } from '../context/AuthContext'
 
 export default function MyBookings() {
+  const { user } = useAuth()
   const [bookings, setBookings] = useState<Booking[]>([])
-  const [searched, setSearched] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<PhoneSearchValues>({
-    resolver: zodResolver(phoneSearchSchema),
-  })
+  useEffect(() => {
+    if (!user) return
 
-  const onSubmit = async (values: PhoneSearchValues) => {
-    setLoading(true)
-    setSearched(false)
-    try {
-      const results = await getBookingsByPhone(values.phone)
-      setBookings(results)
-    } catch {
-      setBookings([])
-    } finally {
-      setLoading(false)
-      setSearched(true)
+    const fetchBookings = async () => {
+      setLoading(true)
+      try {
+        const results = await getBookingsByUserId(user.id)
+        setBookings(results)
+      } catch {
+        setBookings([])
+      } finally {
+        setLoading(false)
+      }
     }
-  }
+
+    fetchBookings()
+  }, [user])
 
   return (
     <div className="page-container">
@@ -46,37 +39,14 @@ export default function MyBookings() {
           </div>
           <h1 className="text-h1 text-coffee mb-2">My Bookings</h1>
           <p className="text-body text-coffee-light/70">
-            View all your bookings by entering your phone number
+            All your parcel bookings in one place
           </p>
+          {user && (
+            <p className="text-xs text-coffee-light/40 mt-1">
+              Signed in as {user.email}
+            </p>
+          )}
         </div>
-
-        {/* Phone Search */}
-        <form onSubmit={handleSubmit(onSubmit)} className="card p-6 mb-6">
-          <label htmlFor="phone-search" className="input-label flex items-center gap-1.5">
-            <Phone className="w-3.5 h-3.5 text-kraft" />
-            Sender Phone Number
-          </label>
-          <div className="flex gap-3 mt-1">
-            <div className="flex-1">
-              <input
-                id="phone-search"
-                type="tel"
-                {...register('phone')}
-                placeholder="Enter 10-digit phone number"
-                className="input-field"
-                maxLength={10}
-              />
-              <ValidationError message={errors.phone?.message} />
-            </div>
-            <button type="submit" disabled={loading} className="btn-cta self-start cursor-pointer">
-              {loading ? (
-                <div className="spinner spinner-sm" style={{ borderTopColor: 'white' }} />
-              ) : (
-                <Search className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-        </form>
 
         {/* Loading */}
         {loading && (
@@ -87,7 +57,7 @@ export default function MyBookings() {
         )}
 
         {/* Results */}
-        {!loading && searched && bookings.length > 0 && (
+        {!loading && bookings.length > 0 && (
           <div className="space-y-4 animate-slide-up">
             <p className="text-sm text-coffee-light/70">
               Found <strong className="text-coffee">{bookings.length}</strong> booking{bookings.length !== 1 ? 's' : ''}
@@ -99,12 +69,12 @@ export default function MyBookings() {
         )}
 
         {/* Empty State */}
-        {!loading && searched && bookings.length === 0 && (
+        {!loading && bookings.length === 0 && (
           <div className="card p-8 text-center animate-fade-in">
             <Inbox className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-h3 text-coffee mb-2">No Bookings Found</h3>
+            <h3 className="text-h3 text-coffee mb-2">No Bookings Yet</h3>
             <p className="text-sm text-coffee-light/70">
-              No bookings found for this phone number. Book a parcel from the home page to get started.
+              You haven't booked any parcels yet. Ship your first parcel to see it here!
             </p>
           </div>
         )}

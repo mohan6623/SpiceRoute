@@ -1,14 +1,7 @@
-import { useState, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Truck, Shield, Clock, MapPin, Package, IndianRupee, ArrowRight } from 'lucide-react'
-import RateCalculator from '../components/RateCalculator'
-import PriceBreakdownCard from '../components/PriceBreakdownCard'
-import BookingForm from '../components/BookingForm'
-import type { PriceEstimate, PincodeData, BookingFormData } from '../types'
-import type { RateCalculatorFormValues } from '../lib/validators'
-import { createBooking } from '../lib/bookingService'
-
-type Step = 'rate' | 'book'
+import { useState } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
+import { Truck, Shield, Clock, MapPin, Package, IndianRupee, Search, Calculator, Send } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const FEATURES = [
   {
@@ -46,47 +39,22 @@ const STATS = [
 
 export default function Home() {
   const navigate = useNavigate()
-  const [step, setStep] = useState<Step>('rate')
-  const [estimate, setEstimate] = useState<PriceEstimate | null>(null)
-  const [rateValues, setRateValues] = useState<RateCalculatorFormValues | null>(null)
-  const [pickupPincodeData, setPickupPincodeData] = useState<PincodeData | undefined>()
-  const [deliveryPincodeData, setDeliveryPincodeData] = useState<PincodeData | undefined>()
+  const { user } = useAuth()
+  const [trackingInput, setTrackingInput] = useState('')
 
-  const handleEstimateCalculated = useCallback(
-    (est: PriceEstimate, values: RateCalculatorFormValues) => {
-      setEstimate(est)
-      setRateValues(values)
-    },
-    []
-  )
-
-  const handlePincodeResolved = useCallback(
-    (type: 'pickup' | 'delivery', data: PincodeData) => {
-      if (type === 'pickup') setPickupPincodeData(data)
-      else setDeliveryPincodeData(data)
-    },
-    []
-  )
-
-  const handleProceedToBook = useCallback(() => {
-    setStep('book')
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
-
-  const handleBookingSubmit = useCallback(
-    async (formData: BookingFormData, est: PriceEstimate) => {
-      const booking = await createBooking(formData, est)
-      navigate('/confirmation', { state: { booking } })
-    },
-    [navigate]
-  )
+  const handleTrack = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (trackingInput.trim()) {
+      navigate(`/track?id=${trackingInput.trim().toUpperCase()}`)
+    }
+  }
 
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
-      <section className="pt-32 pb-12 px-4 sm:px-8 lg:px-12">
-        <div className="w-full max-w-[1600px] mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px] xl:grid-cols-[1fr_520px] gap-12 lg:gap-24 xl:gap-32 items-start">
+      <section className="pt-32 pb-12 px-6 sm:px-10 lg:px-14">
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-12 lg:gap-20 items-start">
             {/* LEFT — Hero Content */}
             <div className="pt-4">
               {/* Badge */}
@@ -122,88 +90,87 @@ export default function Home() {
                 })}
               </div>
 
-              {/* CTA buttons for other pages */}
+              {/* CTA Buttons */}
               <div className="flex flex-wrap gap-3">
-                <a
-                  href="/track"
+                <Link
+                  to="/rates"
                   className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-coffee text-white
                            text-sm font-medium hover:bg-coffee/90 transition-all duration-200"
                 >
-                  Track a Parcel <ArrowRight className="w-4 h-4" />
-                </a>
-                <a
-                  href="/my-bookings"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-paper-border
-                           text-coffee-light text-sm font-medium hover:border-kraft hover:text-kraft transition-all duration-200"
+                  <Calculator className="w-4 h-4" />
+                  Calculate Rate
+                </Link>
+                <Link
+                  to={user ? '/ship' : '/login?redirect=/ship'}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-kraft text-white
+                           text-sm font-medium hover:bg-kraft-light transition-all duration-200"
                 >
-                  View My Bookings
-                </a>
+                  <Send className="w-4 h-4" />
+                  Ship a Parcel
+                </Link>
               </div>
             </div>
 
-            {/* RIGHT — Calculator / Booking Form */}
-            <div className="lg:sticky lg:top-24">
-              {/* Step Indicator */}
-              <div className="flex items-center gap-2 mb-4">
-                <button
-                  onClick={() => setStep('rate')}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                    transition-all duration-200 cursor-pointer
-                    ${step === 'rate'
-                      ? 'bg-kraft text-white shadow-sm'
-                      : 'bg-kraft/10 text-kraft hover:bg-kraft/20'
-                    }`}
-                >
-                  <span className="w-5 h-5 rounded-full bg-white/20 text-xs flex items-center justify-center font-bold">
-                    1
-                  </span>
-                  Rate Check
-                </button>
-                <div className="w-6 h-0.5 bg-paper-border" />
-                <button
-                  onClick={() => estimate && setStep('book')}
-                  disabled={!estimate}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium
-                    transition-all duration-200 cursor-pointer
-                    ${step === 'book'
-                      ? 'bg-kraft text-white shadow-sm'
-                      : estimate
-                        ? 'bg-kraft/10 text-kraft hover:bg-kraft/20'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}
-                >
-                  <span className="w-5 h-5 rounded-full bg-white/20 text-xs flex items-center justify-center font-bold">
-                    2
-                  </span>
-                  Book Parcel
-                </button>
+            {/* RIGHT — Track Order Widget */}
+            <div className="lg:sticky lg:top-24 space-y-4">
+              {/* Track Order Card */}
+              <div className="card p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 bg-postal/10 rounded-lg flex items-center justify-center">
+                    <Search className="w-5 h-5 text-postal" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-coffee">Track Your Order</h3>
+                    <p className="text-xs text-coffee-light/60">Enter tracking ID to get live status</p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleTrack} className="space-y-3">
+                  <input
+                    type="text"
+                    value={trackingInput}
+                    onChange={(e) => setTrackingInput(e.target.value)}
+                    placeholder="Enter tracking ID (e.g., IP2026123456)"
+                    className="input-field font-mono uppercase text-sm"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!trackingInput.trim()}
+                    className="btn-cta w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Search className="w-4 h-4" />
+                    Track Order
+                  </button>
+                </form>
               </div>
 
-              {/* Step Content */}
-              {step === 'rate' && (
-                <div className="space-y-4">
-                  <RateCalculator
-                    onEstimateCalculated={handleEstimateCalculated}
-                    onPincodeDataResolved={handlePincodeResolved}
-                  />
-                  {estimate && (
-                    <PriceBreakdownCard
-                      estimate={estimate}
-                      onProceedToBook={handleProceedToBook}
-                    />
-                  )}
-                </div>
-              )}
-
-              {step === 'book' && estimate && rateValues && (
-                <BookingForm
-                  estimate={estimate}
-                  rateValues={rateValues}
-                  pickupPincodeData={pickupPincodeData}
-                  deliveryPincodeData={deliveryPincodeData}
-                  onBookingSubmit={handleBookingSubmit}
-                />
-              )}
+              {/* Quick Action Cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <Link
+                  to="/rates"
+                  className="card-flat p-4 text-center hover:border-kraft/30 hover:shadow-md
+                           transition-all duration-300 hover:-translate-y-0.5 group"
+                >
+                  <div className="w-10 h-10 mx-auto mb-2 bg-amber-500/10 rounded-xl
+                               flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Calculator className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-coffee">Calculate Rate</p>
+                  <p className="text-[0.625rem] text-coffee-light/50 mt-0.5">Instant pricing</p>
+                </Link>
+                <Link
+                  to={user ? '/my-bookings' : '/login?redirect=/my-bookings'}
+                  className="card-flat p-4 text-center hover:border-kraft/30 hover:shadow-md
+                           transition-all duration-300 hover:-translate-y-0.5 group"
+                >
+                  <div className="w-10 h-10 mx-auto mb-2 bg-purple-500/10 rounded-xl
+                               flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                    <Package className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <p className="text-xs font-semibold text-coffee">My Bookings</p>
+                  <p className="text-[0.625rem] text-coffee-light/50 mt-0.5">View history</p>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -211,7 +178,7 @@ export default function Home() {
 
       {/* ===== FEATURES SECTION ===== */}
       <section className="py-16 bg-coffee/[0.03]">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
+        <div className="w-full max-w-6xl mx-auto px-6 sm:px-10 lg:px-14">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-coffee mb-2">Why Choose SpiceRoute?</h2>
             <p className="text-coffee-light/60 text-sm max-w-md mx-auto">
@@ -244,7 +211,7 @@ export default function Home() {
 
       {/* ===== HOW IT WORKS SECTION ===== */}
       <section className="py-16">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
+        <div className="w-full max-w-6xl mx-auto px-6 sm:px-10 lg:px-14">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-coffee mb-2">How It Works</h2>
             <p className="text-coffee-light/60 text-sm">Three simple steps to ship your parcel</p>

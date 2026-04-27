@@ -5,7 +5,7 @@ export default function Footer() {
   return (
     <footer className="bg-coffee text-white/80 no-print mt-16">
       {/* Main Footer */}
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 py-12">
+      <div className="w-full max-w-6xl mx-auto px-6 sm:px-10 lg:px-14 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand Column */}
           <div className="md:col-span-1">
@@ -75,7 +75,7 @@ export default function Footer() {
 
       {/* Bottom Bar */}
       <div className="border-t border-white/10">
-        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="w-full max-w-6xl mx-auto px-6 sm:px-10 lg:px-14 py-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-xs text-white/30">
             © {new Date().getFullYear()} SpiceRoute. All rights reserved.
           </p>

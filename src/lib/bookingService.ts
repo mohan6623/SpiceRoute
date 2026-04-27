@@ -54,7 +54,8 @@ function mapRowToBooking(row: any): Booking {
 /** Create a new booking in Supabase */
 export async function createBooking(
   formData: BookingFormData,
-  estimate: PriceEstimate
+  estimate: PriceEstimate,
+  userId?: string
 ): Promise<Booking> {
   const trackingId = generateTrackingId()
 
@@ -62,6 +63,7 @@ export async function createBooking(
     .from('bookings')
     .insert({
       tracking_id: trackingId,
+      user_id: userId ?? null,
       sender_name: formData.senderName,
       sender_phone: formData.senderPhone,
       sender_email: formData.senderEmail ?? null,
@@ -122,6 +124,20 @@ export async function getBookingsByPhone(
     .from('bookings')
     .select('*')
     .eq('sender_phone', phone)
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+  return data.map(mapRowToBooking)
+}
+
+/** Get all bookings by user ID */
+export async function getBookingsByUserId(
+  userId: string
+): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('user_id', userId)
     .order('created_at', { ascending: false })
 
   if (error || !data) return []
