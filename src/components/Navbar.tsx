@@ -90,9 +90,19 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Right side: User icon + Mobile hamburger */}
+          {/* Right side: Mobile hamburger + User icon (user icon always rightmost) */}
           <div className="flex items-center gap-2">
-            {/* User Icon / Dropdown */}
+            {/* Mobile Hamburger — only visible on mobile, comes before user icon */}
+            <button
+              onClick={() => setIsOpen(!isOpen)}
+              className="md:hidden p-2 rounded-xl text-coffee-light hover:bg-kraft/10
+                       transition-colors duration-200 cursor-pointer"
+              aria-label={isOpen ? 'Close menu' : 'Open menu'}
+            >
+              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
+            {/* User Icon / Dropdown — rightmost on all screen sizes */}
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => {
@@ -148,17 +158,8 @@ export default function Navbar() {
                 </div>
               )}
             </div>
-
-            {/* Mobile Hamburger */}
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="md:hidden p-2 rounded-xl text-coffee-light hover:bg-kraft/10
-                       transition-colors duration-200 cursor-pointer"
-              aria-label={isOpen ? 'Close menu' : 'Open menu'}
-            >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
           </div>
+
         </div>
 
         {/* Mobile Menu */}

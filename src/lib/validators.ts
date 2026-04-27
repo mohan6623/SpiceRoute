@@ -25,30 +25,55 @@ const addressSchema = z
   .min(1, 'Address is required')
   .min(10, 'Address must be at least 10 characters')
 
+/**
+ * Validates a parcel dimension (length / breadth / height) in centimetres.
+ * Rules:
+ *  - Required, must be a number
+ *  - Minimum: 1 cm  (anything smaller is sub-envelope and nonsensical for a parcel)
+ *  - Maximum: 150 cm (India Post registered/speed post length limit)
+ *  - Precision: at most 1 decimal place (e.g. 30.5 cm is fine; 30.55 is not)
+ */
+const dimensionSchema = (label: string) =>
+  z
+    .number({ message: `${label} must be a number` })
+    .min(1, `${label} must be at least 1 cm`)
+    .max(150, `${label} cannot exceed 150 cm (India Post limit)`)
+    .refine(
+      (v) => Math.round(v * 10) === v * 10,
+      `${label} can have at most 1 decimal place (e.g. 30 or 30.5)`
+    )
+
 /** Rate Calculator validation schema */
-export const rateCalculatorSchema = z.object({
-  pickupPincode: pincodeSchema,
-  deliveryPincode: pincodeSchema,
-  actualWeight: z
-    .number({ message: 'Weight is required' })
-    .min(0.05, 'Minimum weight is 0.05 kg (50g)')
-    .max(35, 'India Post maximum weight limit is 35 kg'),
-  length: z
-    .number({ message: 'Length is required' })
-    .positive('Length must be a positive number'),
-  breadth: z
-    .number({ message: 'Breadth is required' })
-    .positive('Breadth must be a positive number'),
-  height: z
-    .number({ message: 'Height is required' })
-    .positive('Height must be a positive number'),
-  serviceType: z.enum(['Speed Post', 'Registered Post', 'Express Parcel Post'], {
-    message: 'Select a service type',
-  }),
-  paymentMode: z.enum(['Prepaid', 'Cash on Delivery'], {
-    message: 'Select a payment mode',
-  }),
-})
+export const rateCalculatorSchema = z
+  .object({
+    pickupPincode: pincodeSchema,
+    deliveryPincode: pincodeSchema,
+    actualWeight: z
+      .number({ message: 'Weight is required' })
+      .min(0.05, 'Minimum weight is 0.05 kg (50g)')
+      .max(35, 'India Post maximum weight limit is 35 kg'),
+    length: dimensionSchema('Length'),
+    breadth: dimensionSchema('Breadth'),
+    height: dimensionSchema('Height'),
+    serviceType: z.enum(['Speed Post', 'Registered Post', 'Express Parcel Post'], {
+      message: 'Select a service type',
+    }),
+    paymentMode: z.enum(['Prepaid', 'Cash on Delivery'], {
+      message: 'Select a payment mode',
+    }),
+  })
+  .refine(
+    ({ length, breadth, height }) => {
+      // India Post girth rule: length + 2*(breadth + height) ≤ 300 cm
+      const girth = length + 2 * (breadth + height)
+      return girth <= 300
+    },
+    {
+      message:
+        'Combined size too large: Length + 2×(Breadth + Height) must not exceed 300 cm',
+      path: ['length'],
+    }
+  )
 
 export type RateCalculatorFormValues = z.infer<typeof rateCalculatorSchema>
 
