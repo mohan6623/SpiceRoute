@@ -216,7 +216,7 @@
   /* ===== Page Container ===== */
   .page-container {
     @apply section-container py-8;
-    padding-top: calc(4.5rem + 2rem); /* navbar height + spacing */
+    padding-top: calc(6rem + 2rem); /* floating navbar + spacing */
   }
 }
 
