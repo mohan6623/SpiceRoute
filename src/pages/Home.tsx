@@ -84,9 +84,9 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
-      <section className="pt-28 pb-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+      <section className="pt-32 pb-12 px-4 sm:px-8 lg:px-12">
+        <div className="w-full max-w-[1600px] mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_480px] xl:grid-cols-[1fr_520px] gap-12 lg:gap-24 xl:gap-32 items-start">
             {/* LEFT — Hero Content */}
             <div className="pt-4">
               {/* Badge */}
@@ -211,7 +211,7 @@ export default function Home() {
 
       {/* ===== FEATURES SECTION ===== */}
       <section className="py-16 bg-coffee/[0.03]">
-        <div className="max-w-6xl mx-auto px-4">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-coffee mb-2">Why Choose SpiceRoute?</h2>
             <p className="text-coffee-light/60 text-sm max-w-md mx-auto">
@@ -244,7 +244,7 @@ export default function Home() {
 
       {/* ===== HOW IT WORKS SECTION ===== */}
       <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4">
+        <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12">
           <div className="text-center mb-10">
             <h2 className="text-2xl font-bold text-coffee mb-2">How It Works</h2>
             <p className="text-coffee-light/60 text-sm">Three simple steps to ship your parcel</p>

@@ -22,17 +22,17 @@ export default function Navbar() {
   }, [])
 
   return (
-    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 no-print w-[95%] max-w-3xl">
+    <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-50 no-print w-[96%] max-w-7xl">
       <div
         className={`
-          rounded-2xl border transition-all duration-500 ease-out
+          rounded-[2.5rem] border transition-all duration-500 ease-out overflow-hidden
           ${scrolled
-            ? 'bg-white/90 backdrop-blur-xl shadow-lg border-paper-border/60'
-            : 'bg-white/70 backdrop-blur-md shadow-md border-paper-border/40'
+            ? 'bg-white/70 backdrop-blur-3xl shadow-xl border-white/50'
+            : 'bg-white/50 backdrop-blur-2xl shadow-lg border-white/30'
           }
         `}
       >
-        <div className="flex items-center justify-between h-14 px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16 px-6 sm:px-8">
           {/* Brand */}
           <Link to="/" className="flex items-center gap-2 group cursor-pointer">
             <img
