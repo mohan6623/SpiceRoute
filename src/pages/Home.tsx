@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Package } from 'lucide-react'
 import RateCalculator from '../components/RateCalculator'
 import PriceBreakdownCard from '../components/PriceBreakdownCard'
 import BookingForm from '../components/BookingForm'
