@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Menu, X, Package, Search, ClipboardList, Send, Calculator, User, LogOut, LogIn } from 'lucide-react'
+import { Menu, X, Package, Search, ClipboardList, Send, Calculator, User, LogOut, LogIn, BarChart3 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { isAdminEmail } from './AdminRoute'
 
 const NAV_LINKS = [
   { to: '/', label: 'Home', icon: Package },
@@ -146,6 +147,17 @@ export default function Navbar() {
                       <ClipboardList className="w-4 h-4" />
                       My Bookings
                     </Link>
+                    {isAdminEmail(user.email) && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-kraft
+                                 hover:bg-kraft/5 transition-colors duration-150"
+                      >
+                        <BarChart3 className="w-4 h-4" />
+                        Admin Dashboard
+                      </Link>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-red-600
@@ -190,14 +202,27 @@ export default function Navbar() {
             })}
             {/* Mobile login/logout */}
             {user ? (
-              <button
-                onClick={() => { handleSignOut(); setIsOpen(false) }}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
-                  text-red-600 hover:bg-red-50 transition-all duration-200 cursor-pointer"
-              >
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </button>
+              <>
+                {isAdminEmail(user.email) && (
+                  <Link
+                    to="/admin"
+                    onClick={() => setIsOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                      text-kraft hover:bg-kraft/10 transition-all duration-200 cursor-pointer"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Admin Dashboard
+                  </Link>
+                )}
+                <button
+                  onClick={() => { handleSignOut(); setIsOpen(false) }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium
+                    text-red-600 hover:bg-red-50 transition-all duration-200 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </>
             ) : (
               <Link
                 to="/login"

@@ -52,6 +52,7 @@ export interface BookingFormData {
   senderState: string
   receiverName: string
   receiverPhone: string
+  receiverEmail?: string
   receiverAddress: string
   receiverPincode: string
   receiverCity: string

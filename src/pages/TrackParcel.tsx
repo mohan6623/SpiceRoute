@@ -2,22 +2,32 @@ import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Search, Package, AlertTriangle, Zap } from 'lucide-react'
+import { Search, Package, AlertTriangle, Zap, Mail, CheckCircle } from 'lucide-react'
 import { trackingSearchSchema, type TrackingSearchValues } from '../lib/validators'
-import { getBookingByTrackingId, updateBookingStatus } from '../lib/bookingService'
+import {
+  getBookingByTrackingId,
+  updateBookingStatus,
+  getStatusHistory,
+  type StatusHistoryEntry,
+} from '../lib/bookingService'
+import { sendBookingEmail } from '../lib/emailService'
 import type { Booking, BookingStatus } from '../types'
 import { BOOKING_STATUSES, STATUS_BADGE_CLASS } from '../types'
 import StatusTimeline from '../components/StatusTimeline'
 import { CardSkeleton } from '../components/LoadingSkeleton'
 import ValidationError from '../components/ValidationError'
+import { useAuth } from '../context/AuthContext'
 
 export default function TrackParcel() {
   const [searchParams] = useSearchParams()
+  const { user } = useAuth()
   const [booking, setBooking] = useState<Booking | null>(null)
+  const [history, setHistory] = useState<StatusHistoryEntry[]>([])
   const [notFound, setNotFound] = useState(false)
   const [loading, setLoading] = useState(false)
   const [demoMode, setDemoMode] = useState(false)
   const [demoUpdating, setDemoUpdating] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
 
   const {
     register,
@@ -32,10 +42,15 @@ export default function TrackParcel() {
     setLoading(true)
     setNotFound(false)
     setBooking(null)
+    setHistory([])
+    setEmailSent(false)
     try {
       const result = await getBookingByTrackingId(trackingId)
       if (result) {
         setBooking(result)
+        // Fetch status history
+        const h = await getStatusHistory(result.id)
+        setHistory(h)
       } else {
         setNotFound(true)
       }
@@ -77,11 +92,27 @@ export default function TrackParcel() {
 
     const nextStatus: BookingStatus = BOOKING_STATUSES[currentIdx + 1]
     setDemoUpdating(true)
-    const success = await updateBookingStatus(booking.trackingId, nextStatus)
+    const success = await updateBookingStatus(booking.trackingId, nextStatus, user?.id)
     if (success) {
       setBooking({ ...booking, status: nextStatus })
+      // Refresh history
+      const h = await getStatusHistory(booking.id)
+      setHistory(h)
+      // Send status update email (fire-and-forget)
+      sendBookingEmail('status_update', { ...booking, status: nextStatus }).catch(() => {})
     }
     setDemoUpdating(false)
+  }
+
+  const handleSendEmail = async () => {
+    if (!booking) return
+    try {
+      await sendBookingEmail('status_update', booking)
+      setEmailSent(true)
+      setTimeout(() => setEmailSent(false), 3000)
+    } catch {
+      // silently fail
+    }
   }
 
   return (
@@ -144,7 +175,7 @@ export default function TrackParcel() {
                   {booking.status}
                 </span>
               </div>
-              <StatusTimeline currentStatus={booking.status} />
+              <StatusTimeline currentStatus={booking.status} history={history} />
             </div>
 
             {/* Booking Details */}
@@ -184,6 +215,30 @@ export default function TrackParcel() {
                   <p className="font-medium text-coffee">₹{booking.estimate.totalPrice.toFixed(2)}</p>
                 </div>
               </div>
+
+              {/* Send status email button */}
+              {booking.formData.senderEmail && (
+                <div className="mt-4 pt-4 border-t border-paper-border">
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={emailSent}
+                    className="text-sm flex items-center gap-2 text-postal hover:text-postal/80
+                             transition-colors duration-200 cursor-pointer disabled:opacity-50"
+                  >
+                    {emailSent ? (
+                      <>
+                        <CheckCircle className="w-4 h-4 text-success" />
+                        <span className="text-success">Email notification sent!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4" />
+                        Send status update email
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}

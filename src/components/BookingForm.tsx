@@ -4,10 +4,12 @@ import { Send } from 'lucide-react'
 import { bookingFormSchema, type BookingFormValues } from '../lib/validators'
 import type { PriceEstimate, BookingFormData, PincodeData } from '../types'
 import type { RateCalculatorFormValues } from '../lib/validators'
+import type { SavedAddress } from '../lib/addressService'
 import SenderDetails from './SenderDetails'
 import ReceiverDetails from './ReceiverDetails'
 import ParcelDetails from './ParcelDetails'
 import BookingSummaryCard from './BookingSummaryCard'
+import SavedAddressPicker from './SavedAddressPicker'
 import { useState } from 'react'
 
 interface BookingFormProps {
@@ -58,13 +60,57 @@ export default function BookingForm({
   const watchedPickupDate = watch('pickupDate')
   const watchedPickupSlot = watch('pickupTimeSlot')
 
+  /** Fill sender fields from a saved address */
+  const handleSenderAddressSelect = (addr: SavedAddress) => {
+    setValue('senderName', addr.name, { shouldValidate: true })
+    setValue('senderPhone', addr.phone, { shouldValidate: true })
+    setValue('senderEmail', addr.email ?? '', { shouldValidate: true })
+    setValue('senderAddress', addr.address, { shouldValidate: true })
+    setSenderPincode(addr.pincode)
+    setSenderCity(addr.city)
+    setSenderState(addr.state)
+    setValue('senderPincode', addr.pincode, { shouldValidate: true })
+    setValue('senderCity', addr.city, { shouldValidate: true })
+    setValue('senderState', addr.state, { shouldValidate: true })
+  }
+
+  /** Fill receiver fields from a saved address */
+  const handleReceiverAddressSelect = (addr: SavedAddress) => {
+    setValue('receiverName', addr.name, { shouldValidate: true })
+    setValue('receiverPhone', addr.phone, { shouldValidate: true })
+    setValue('receiverEmail', addr.email ?? '', { shouldValidate: true })
+    setValue('receiverAddress', addr.address, { shouldValidate: true })
+    setReceiverPincode(addr.pincode)
+    setReceiverCity(addr.city)
+    setReceiverState(addr.state)
+    setValue('receiverPincode', addr.pincode, { shouldValidate: true })
+    setValue('receiverCity', addr.city, { shouldValidate: true })
+    setValue('receiverState', addr.state, { shouldValidate: true })
+  }
+
   const onSubmit = async (values: BookingFormValues) => {
     setSubmitError(null)
     setIsSubmitting(true)
     try {
+      // COD validation: declared value is mandatory for Cash on Delivery
+      if (rateValues.paymentMode === 'Cash on Delivery') {
+        const dv = values.declaredValue
+        if (!dv || dv <= 0) {
+          setSubmitError('Declared value is required for Cash on Delivery orders.')
+          setIsSubmitting(false)
+          return
+        }
+        if (dv > 50000) {
+          setSubmitError('Declared value cannot exceed ₹50,000 for India Post COD orders.')
+          setIsSubmitting(false)
+          return
+        }
+      }
+
       const formData: BookingFormData = {
         ...values,
         senderEmail: values.senderEmail || undefined,
+        receiverEmail: values.receiverEmail || undefined,
         contentsDescription: values.contentsDescription || undefined,
         declaredValue: values.declaredValue || undefined,
         actualWeight: estimate.actualWeight,
@@ -94,6 +140,10 @@ export default function BookingForm({
         >
           {/* Sender */}
           <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <span /> {/* spacer */}
+              <SavedAddressPicker onSelect={handleSenderAddressSelect} />
+            </div>
             <SenderDetails
               register={register}
               errors={errors}
@@ -115,6 +165,10 @@ export default function BookingForm({
 
           {/* Receiver */}
           <div className="card p-6">
+            <div className="flex items-center justify-between mb-4">
+              <span /> {/* spacer */}
+              <SavedAddressPicker onSelect={handleReceiverAddressSelect} />
+            </div>
             <ReceiverDetails
               register={register}
               errors={errors}
@@ -145,6 +199,7 @@ export default function BookingForm({
                 breadth: rateValues.breadth,
                 height: rateValues.height,
               }}
+              isCOD={rateValues.paymentMode === 'Cash on Delivery'}
             />
           </div>
 

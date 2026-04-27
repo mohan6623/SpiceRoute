@@ -34,6 +34,9 @@ export default function Rates() {
 
   const handleProceedToBook = useCallback(() => {
     if (!user) {
+      // Save rate data to sessionStorage so it survives the login redirect
+      const savedState = { estimate, rateValues, pickupPincodeData, deliveryPincodeData }
+      sessionStorage.setItem('spiceroute_pending_booking', JSON.stringify(savedState))
       navigate('/login?redirect=/ship')
       return
     }
@@ -49,7 +52,7 @@ export default function Rates() {
 
   return (
     <div className="page-container">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 mx-auto mb-3 bg-kraft/10 rounded-xl flex items-center justify-center">

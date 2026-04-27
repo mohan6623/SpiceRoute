@@ -2,6 +2,15 @@ import { supabase } from './supabase'
 import type { Booking, BookingFormData, BookingStatus, PriceEstimate } from '../types'
 import { generateTrackingId } from './trackingId'
 
+/** A single status-history entry */
+export interface StatusHistoryEntry {
+  id: string
+  bookingId: string
+  status: BookingStatus
+  changedAt: string
+  note: string | null
+}
+
 /** Map a Supabase row to a Booking object */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapRowToBooking(row: any): Booking {
@@ -18,6 +27,7 @@ function mapRowToBooking(row: any): Booking {
       senderState: row.sender_state,
       receiverName: row.receiver_name,
       receiverPhone: row.receiver_phone,
+      receiverEmail: row.receiver_email ?? undefined,
       receiverAddress: row.receiver_address,
       receiverPincode: row.receiver_pincode,
       receiverCity: row.receiver_city,
@@ -51,7 +61,7 @@ function mapRowToBooking(row: any): Booking {
   }
 }
 
-/** Create a new booking in Supabase */
+/** Create a new booking in Supabase and record the initial status */
 export async function createBooking(
   formData: BookingFormData,
   estimate: PriceEstimate,
@@ -73,6 +83,7 @@ export async function createBooking(
       sender_state: formData.senderState,
       receiver_name: formData.receiverName,
       receiver_phone: formData.receiverPhone,
+      receiver_email: formData.receiverEmail ?? null,
       receiver_address: formData.receiverAddress,
       receiver_pincode: formData.receiverPincode,
       receiver_city: formData.receiverCity,
@@ -98,8 +109,20 @@ export async function createBooking(
     .select()
     .single()
 
-  if (error) throw new Error(error.message)
-  return mapRowToBooking(data)
+  if (error) {
+    console.error('Booking creation failed:', error.message)
+    // Show user-friendly error instead of raw RLS/database messages
+    if (error.message.includes('row-level security') || error.message.includes('security policy')) {
+      throw new Error('Unable to create booking. Please try signing out and signing back in.')
+    }
+    throw new Error('Booking failed. Please try again or contact support.')
+  }
+  const booking = mapRowToBooking(data)
+
+  // Record initial status in history (fire-and-forget)
+  insertStatusHistory(booking.id, 'Booked', userId, 'Booking created').catch(() => {})
+
+  return booking
 }
 
 /** Get a booking by tracking ID */
@@ -144,15 +167,80 @@ export async function getBookingsByUserId(
   return data.map(mapRowToBooking)
 }
 
-/** Update booking status (for demo mode) */
+/** Get ALL bookings (admin use only) */
+export async function getAllBookings(): Promise<Booking[]> {
+  const { data, error } = await supabase
+    .from('bookings')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error || !data) return []
+  return data.map(mapRowToBooking)
+}
+
+/** Update booking status and record in history. Returns the updated booking for email use. */
 export async function updateBookingStatus(
   trackingId: string,
-  newStatus: BookingStatus
-): Promise<boolean> {
+  newStatus: BookingStatus,
+  userId?: string
+): Promise<Booking | null> {
   const { error } = await supabase
     .from('bookings')
-    .update({ status: newStatus })
+    .update({ status: newStatus, status_updated_at: new Date().toISOString() })
     .eq('tracking_id', trackingId)
 
-  return !error
+  if (error) return null
+
+  // Fetch full updated booking for email + history
+  const { data } = await supabase
+    .from('bookings')
+    .select('*')
+    .eq('tracking_id', trackingId)
+    .single()
+
+  if (data) {
+    insertStatusHistory(data.id, newStatus, userId).catch(() => {})
+    return mapRowToBooking({ ...data, status: newStatus })
+  }
+
+  return null
+}
+
+// ─── Status History ────────────────────────────────────
+
+/** Insert a status history entry */
+export async function insertStatusHistory(
+  bookingId: string,
+  status: BookingStatus,
+  changedBy?: string,
+  note?: string
+): Promise<void> {
+  await supabase.from('booking_status_history').insert({
+    booking_id: bookingId,
+    status,
+    changed_by: changedBy ?? null,
+    note: note ?? null,
+  })
+}
+
+/** Get full status history for a booking */
+export async function getStatusHistory(
+  bookingId: string
+): Promise<StatusHistoryEntry[]> {
+  const { data, error } = await supabase
+    .from('booking_status_history')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('changed_at', { ascending: true })
+
+  if (error || !data) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return data.map((row: any) => ({
+    id: row.id,
+    bookingId: row.booking_id,
+    status: row.status as BookingStatus,
+    changedAt: row.changed_at,
+    note: row.note,
+  }))
 }

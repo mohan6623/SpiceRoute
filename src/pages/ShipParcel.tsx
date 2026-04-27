@@ -7,6 +7,7 @@ import BookingForm from '../components/BookingForm'
 import type { PriceEstimate, PincodeData, BookingFormData } from '../types'
 import type { RateCalculatorFormValues } from '../lib/validators'
 import { createBooking } from '../lib/bookingService'
+import { autoSaveAddressFromBooking } from '../lib/addressService'
 import { useAuth } from '../context/AuthContext'
 
 type Step = 'rate' | 'book'
@@ -17,12 +18,22 @@ export default function ShipParcel() {
   const { user } = useAuth()
 
   // Check if we arrived from /rates with pre-calculated data
-  const incomingState = location.state as {
+  const incomingState = (location.state as {
     estimate?: PriceEstimate
     rateValues?: RateCalculatorFormValues
     pickupPincodeData?: PincodeData
     deliveryPincodeData?: PincodeData
-  } | null
+  } | null) ?? (() => {
+    // Fallback: recover from sessionStorage (survives login redirect)
+    try {
+      const saved = sessionStorage.getItem('spiceroute_pending_booking')
+      if (saved) {
+        sessionStorage.removeItem('spiceroute_pending_booking')
+        return JSON.parse(saved)
+      }
+    } catch { /* ignore */ }
+    return null
+  })()
 
   const [step, setStep] = useState<Step>(incomingState?.estimate ? 'book' : 'rate')
   const [estimate, setEstimate] = useState<PriceEstimate | null>(incomingState?.estimate ?? null)
@@ -60,6 +71,30 @@ export default function ShipParcel() {
   const handleBookingSubmit = useCallback(
     async (formData: BookingFormData, est: PriceEstimate) => {
       const booking = await createBooking(formData, est, user?.id)
+
+      // Auto-save sender and receiver addresses (fire-and-forget)
+      if (user?.id) {
+        autoSaveAddressFromBooking(user.id, 'sender', {
+          name: formData.senderName,
+          phone: formData.senderPhone,
+          email: formData.senderEmail,
+          address: formData.senderAddress,
+          pincode: formData.senderPincode,
+          city: formData.senderCity,
+          state: formData.senderState,
+        }).catch(() => {})
+
+        autoSaveAddressFromBooking(user.id, 'receiver', {
+          name: formData.receiverName,
+          phone: formData.receiverPhone,
+          email: formData.receiverEmail,
+          address: formData.receiverAddress,
+          pincode: formData.receiverPincode,
+          city: formData.receiverCity,
+          state: formData.receiverState,
+        }).catch(() => {})
+      }
+
       navigate('/confirmation', { state: { booking } })
     },
     [navigate, user]
@@ -67,7 +102,7 @@ export default function ShipParcel() {
 
   return (
     <div className="page-container">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-12 h-12 mx-auto mb-3 bg-kraft/10 rounded-xl flex items-center justify-center">

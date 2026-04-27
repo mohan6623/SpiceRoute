@@ -1,13 +1,26 @@
 import { useLocation, Navigate, Link } from 'react-router-dom'
-import { CheckCircle, Copy, Check, Printer, Search, Package } from 'lucide-react'
-import { useState } from 'react'
+import { CheckCircle, Copy, Check, Printer, Search, Package, Download, Mail } from 'lucide-react'
+import { useState, useEffect } from 'react'
 import type { Booking } from '../types'
 import StatusTimeline from '../components/StatusTimeline'
+import { generateBookingSlipPDF } from '../lib/pdfService'
+import { sendBookingEmail } from '../lib/emailService'
 
 export default function Confirmation() {
   const location = useLocation()
   const booking = (location.state as { booking?: Booking })?.booking
   const [copied, setCopied] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle')
+
+  // Automatically send confirmation email on mount
+  useEffect(() => {
+    if (booking && booking.formData.senderEmail) {
+      setEmailStatus('sending')
+      sendBookingEmail('booking_confirmation', booking)
+        .then((ok) => setEmailStatus(ok ? 'sent' : 'failed'))
+        .catch(() => setEmailStatus('failed'))
+    }
+  }, [booking])
 
   if (!booking) {
     return <Navigate to="/" replace />
@@ -37,6 +50,16 @@ export default function Confirmation() {
     window.print()
   }
 
+  const handleDownloadPDF = async () => {
+    await generateBookingSlipPDF(booking)
+  }
+
+  const handleResendEmail = async () => {
+    setEmailStatus('sending')
+    const ok = await sendBookingEmail('booking_confirmation', booking)
+    setEmailStatus(ok ? 'sent' : 'failed')
+  }
+
   return (
     <div className="page-container">
       <div className="max-w-2xl mx-auto">
@@ -50,6 +73,34 @@ export default function Confirmation() {
           <p className="text-body text-coffee-light/70">
             Your parcel has been booked successfully
           </p>
+
+          {/* Email notification status */}
+          {formData.senderEmail && (
+            <div className="mt-3 flex items-center justify-center gap-2 text-sm">
+              {emailStatus === 'sending' && (
+                <span className="text-coffee-light/60 flex items-center gap-1.5">
+                  <div className="spinner spinner-sm" /> Sending confirmation email...
+                </span>
+              )}
+              {emailStatus === 'sent' && (
+                <span className="text-success flex items-center gap-1.5">
+                  <Mail className="w-4 h-4" /> Confirmation email sent!
+                </span>
+              )}
+              {emailStatus === 'failed' && (
+                <span className="text-coffee-light/50 flex items-center gap-1.5">
+                  <Mail className="w-4 h-4" />
+                  Email couldn't be sent.{' '}
+                  <button
+                    onClick={handleResendEmail}
+                    className="underline hover:text-kraft cursor-pointer"
+                  >
+                    Retry
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tracking ID */}
@@ -169,12 +220,19 @@ export default function Confirmation() {
             <Search className="w-5 h-5" />
             Track This Parcel
           </Link>
+          <button
+            onClick={handleDownloadPDF}
+            className="btn-outline flex-1 cursor-pointer"
+          >
+            <Download className="w-5 h-5" />
+            Download PDF
+          </button>
           <Link
             to="/"
             className="btn-outline flex-1 text-center cursor-pointer"
           >
             <Package className="w-5 h-5" />
-            Book Another Parcel
+            Book Another
           </Link>
           <button
             onClick={handlePrint}

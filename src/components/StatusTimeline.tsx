@@ -1,9 +1,12 @@
 import { Check } from 'lucide-react'
 import type { BookingStatus } from '../types'
 import { BOOKING_STATUSES } from '../types'
+import type { StatusHistoryEntry } from '../lib/bookingService'
 
 interface StatusTimelineProps {
   currentStatus: BookingStatus
+  /** When provided, real timestamps are shown below each step */
+  history?: StatusHistoryEntry[]
 }
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
@@ -14,12 +17,32 @@ const STATUS_COLORS: Record<BookingStatus, string> = {
   'Delivered': '#166534',
 }
 
-export default function StatusTimeline({ currentStatus }: StatusTimelineProps) {
+/** Format a timestamp nicely */
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+export default function StatusTimeline({ currentStatus, history }: StatusTimelineProps) {
   const currentIndex = BOOKING_STATUSES.indexOf(currentStatus)
+
+  // Build a lookup: status → timestamp (use the first occurrence)
+  const historyMap = new Map<string, string>()
+  if (history) {
+    for (const entry of history) {
+      if (!historyMap.has(entry.status)) {
+        historyMap.set(entry.status, entry.changedAt)
+      }
+    }
+  }
 
   return (
     <div className="w-full py-4">
-      <div className="flex items-center justify-between relative">
+      <div className="flex items-start justify-between relative">
         {/* Connecting line (background) */}
         <div className="absolute top-5 left-[10%] right-[10%] h-0.5 bg-paper-border" />
         {/* Connecting line (progress) */}
@@ -36,6 +59,7 @@ export default function StatusTimeline({ currentStatus }: StatusTimelineProps) {
           const isCurrent = index === currentIndex
           const isActive = isCompleted || isCurrent
           const color = isActive ? STATUS_COLORS[status] : '#D1D5DB'
+          const timestamp = historyMap.get(status)
 
           return (
             <div key={status} className="flex flex-col items-center z-10 relative" style={{ width: '20%' }}>
@@ -67,6 +91,13 @@ export default function StatusTimeline({ currentStatus }: StatusTimelineProps) {
               >
                 {status}
               </span>
+
+              {/* Timestamp (when history is available) */}
+              {timestamp && (
+                <span className="mt-0.5 text-[10px] text-coffee-light/50 text-center leading-tight">
+                  {formatDate(timestamp)}
+                </span>
+              )}
             </div>
           )
         })}

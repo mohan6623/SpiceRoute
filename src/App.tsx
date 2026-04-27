@@ -3,12 +3,14 @@ import { AuthProvider } from './context/AuthContext'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
+import AdminRoute from './components/AdminRoute'
 import Home from './pages/Home'
 import Rates from './pages/Rates'
 import ShipParcel from './pages/ShipParcel'
 import Confirmation from './pages/Confirmation'
 import TrackParcel from './pages/TrackParcel'
 import MyBookings from './pages/MyBookings'
+import AdminDashboard from './pages/AdminDashboard'
 import Login from './pages/Login'
 
 export default function App() {
@@ -49,6 +51,14 @@ export default function App() {
                   <ProtectedRoute>
                     <MyBookings />
                   </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminDashboard />
+                  </AdminRoute>
                 }
               />
               <Route path="*" element={<Navigate to="/" replace />} />

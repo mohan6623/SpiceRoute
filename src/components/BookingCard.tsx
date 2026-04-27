@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
-import { MapPin, ArrowRight, Calendar, IndianRupee } from 'lucide-react'
+import { MapPin, ArrowRight, Calendar, IndianRupee, Download } from 'lucide-react'
 import type { Booking } from '../types'
 import { STATUS_BADGE_CLASS } from '../types'
+import { generateBookingSlipPDF } from '../lib/pdfService'
 
 interface BookingCardProps {
   booking: Booking
@@ -10,6 +11,11 @@ interface BookingCardProps {
 export default function BookingCard({ booking }: BookingCardProps) {
   const { formData, estimate, status, trackingId, createdAt } = booking
   const badgeClass = STATUS_BADGE_CLASS[status]
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    await generateBookingSlipPDF(booking)
+  }
 
   return (
     <div className="card p-5 hover:shadow-kraft-md transition-shadow duration-200">
@@ -50,13 +56,23 @@ export default function BookingCard({ booking }: BookingCardProps) {
           </div>
         </div>
 
-        {/* Right: Track button */}
-        <Link
-          to={`/track?id=${trackingId}`}
-          className="btn-outline text-sm py-2 px-4 self-start cursor-pointer"
-        >
-          Track
-        </Link>
+        {/* Right: Actions */}
+        <div className="flex gap-2 self-start">
+          <button
+            onClick={handleDownload}
+            className="btn-ghost text-sm py-2 px-3 cursor-pointer"
+            aria-label="Download booking slip"
+            title="Download PDF Slip"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <Link
+            to={`/track?id=${trackingId}`}
+            className="btn-outline text-sm py-2 px-4 self-start cursor-pointer"
+          >
+            Track
+          </Link>
+        </div>
       </div>
     </div>
   )

@@ -93,6 +93,11 @@ export const bookingFormSchema = z.object({
 
   receiverName: nameSchema,
   receiverPhone: phoneSchema,
+  receiverEmail: z
+    .string()
+    .email('Enter a valid email address')
+    .optional()
+    .or(z.literal('')),
   receiverAddress: addressSchema,
   receiverPincode: pincodeSchema,
   receiverCity: z.string().min(1, 'City is required'),

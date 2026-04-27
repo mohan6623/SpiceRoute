@@ -1,7 +1,7 @@
 import type { UseFormRegister, FieldErrors } from 'react-hook-form'
 import type { BookingFormValues } from '../lib/validators'
 import type { PincodeData } from '../types'
-import { UserCheck, Phone, MapPin } from 'lucide-react'
+import { UserCheck, Phone, Mail, MapPin } from 'lucide-react'
 import PincodeInput from './PincodeInput'
 import ValidationError from './ValidationError'
 
@@ -64,6 +64,22 @@ export default function ReceiverDetails({
           />
           <ValidationError message={errors.receiverPhone?.message} />
         </div>
+      </div>
+
+      {/* Email */}
+      <div>
+        <label htmlFor="receiver-email" className="input-label flex items-center gap-1.5">
+          <Mail className="w-3.5 h-3.5 text-kraft" />
+          Email (optional — for delivery notifications)
+        </label>
+        <input
+          id="receiver-email"
+          type="email"
+          {...register('receiverEmail')}
+          placeholder="receiver@example.com"
+          className="input-field"
+        />
+        <ValidationError message={errors.receiverEmail?.message} />
       </div>
 
       {/* Address */}

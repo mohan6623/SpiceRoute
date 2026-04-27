@@ -1,7 +1,7 @@
 import type { UseFormRegister, FieldErrors } from 'react-hook-form'
 import type { BookingFormValues } from '../lib/validators'
 import { PICKUP_TIME_SLOTS } from '../types'
-import { Package, Calendar, Clock, FileText, IndianRupee } from 'lucide-react'
+import { Package, Calendar, Clock, FileText, IndianRupee, AlertCircle } from 'lucide-react'
 import ValidationError from './ValidationError'
 
 interface ParcelDetailsProps {
@@ -9,11 +9,14 @@ interface ParcelDetailsProps {
   errors: FieldErrors<BookingFormValues>
   prefilledWeight?: number
   prefilledDimensions?: { length: number; breadth: number; height: number }
+  /** When true, declared value becomes mandatory with COD limits */
+  isCOD?: boolean
 }
 
 export default function ParcelDetails({
   register,
   errors,
+  isCOD = false,
 }: ParcelDetailsProps) {
   // Compute tomorrow's date for minimum pickup date
   const tomorrow = new Date()
@@ -48,17 +51,23 @@ export default function ParcelDetails({
       <div>
         <label htmlFor="declared-value" className="input-label flex items-center gap-1.5">
           <IndianRupee className="w-3.5 h-3.5 text-kraft" />
-          Declared Value ₹ (optional)
+          Declared Value ₹ {isCOD ? <span className="text-error">*</span> : '(optional)'}
         </label>
         <input
           id="declared-value"
           type="number"
           step="1"
           {...register('declaredValue', { valueAsNumber: true })}
-          placeholder="e.g. 500"
-          className="input-field"
+          placeholder={isCOD ? 'Required for COD (₹1 – ₹50,000)' : 'e.g. 500'}
+          className={`input-field ${isCOD ? 'border-amber-300 focus:border-amber-500' : ''}`}
         />
         <ValidationError message={errors.declaredValue?.message} />
+        {isCOD && !errors.declaredValue && (
+          <p className="mt-1 text-xs text-amber-600 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Required for Cash on Delivery. India Post limit: ₹50,000
+          </p>
+        )}
       </div>
 
       {/* Pickup Date + Time Slot */}
