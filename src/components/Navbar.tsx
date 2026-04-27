@@ -64,7 +64,7 @@ export default function Navbar() {
               alt="SpiceRoute Logo"
               className="h-9 w-auto object-contain transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3"
             />
-            <span className="text-base font-bold text-coffee tracking-tight hidden sm:block">
+            <span className="text-base font-bold text-coffee tracking-tight">
               SpiceRoute
             </span>
           </Link>

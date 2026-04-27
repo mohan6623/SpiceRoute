@@ -4,6 +4,7 @@ import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import ProtectedRoute from './components/ProtectedRoute'
 import AdminRoute from './components/AdminRoute'
+import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import Rates from './pages/Rates'
 import ShipParcel from './pages/ShipParcel'
@@ -16,6 +17,7 @@ import Login from './pages/Login'
 export default function App() {
   return (
     <AuthProvider>
+      <ScrollToTop />
       <div className="min-h-screen relative">
         {/* Fixed Watermark Logo — visible on every page */}
         <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none no-print">
