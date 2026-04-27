@@ -1,0 +1,59 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Security & Secrets (CRITICAL)
+.env
+.env.production
+.env.local
+.env.*.local
+.mcp.json
+
+# API/AI Agent Local State and Skills
+.claude/
+.zencoder/
+.agents/
+.windsurf/
+.adl/
+.arg/
+argument/
+.codebuddy/
+.command\ code/
+.continue/
+.codex/
+.crush/
+.factory/
+.goose/
+.iFlow/
+.cascade/
+.cline/
+skills/
+skills-lock.json
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+
+# Database / Supabase local development state
+.supabase/
+
+# Editor directories and OS files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.bak

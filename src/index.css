@@ -1,0 +1,285 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ========================================
+   SpiceRoute — Craft Paper Design System
+   ======================================== */
+
+@layer base {
+  :root {
+    --color-kraft: #8B5A2B;
+    --color-kraft-light: #A67C52;
+    --color-kraft-dark: #6B4423;
+    --color-postal: #1E40AF;
+    --color-postal-dark: #1E3A8A;
+    --color-background: #FDF8F3;
+    --color-surface: #FFFFFF;
+    --color-border: #E8DCC8;
+    --color-text-dark: #3D2914;
+    --color-text-body: #5C4033;
+    --color-success: #166534;
+    --color-error: #991B1B;
+  }
+
+  html {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-paper text-coffee-light;
+    min-height: 100vh;
+    /* Subtle paper texture via SVG filter */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply text-coffee;
+  }
+
+  /* Global focus outline */
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-kraft;
+  }
+}
+
+@layer components {
+  /* ===== Card Styles ===== */
+  .card {
+    @apply bg-paper-surface rounded-card shadow-kraft;
+    border-top: 3px solid #8B5A2B;
+  }
+
+  .card-flat {
+    @apply bg-paper-surface rounded-card shadow-kraft;
+    border: 1px solid #E8DCC8;
+  }
+
+  /* ===== Form Input — Shipping Label Style ===== */
+  .input-field {
+    @apply w-full px-4 py-3 text-body text-coffee-light
+           bg-paper-input rounded-input
+           transition-colors duration-200;
+    border: 2px solid #E8DCC8;
+  }
+
+  .input-field:focus {
+    @apply outline-none;
+    border-color: #8B5A2B;
+    box-shadow: inset 0 1px 3px rgba(139, 90, 43, 0.1);
+  }
+
+  .input-field:disabled {
+    @apply bg-gray-100 text-gray-500 cursor-not-allowed;
+  }
+
+  .input-field::placeholder {
+    @apply text-gray-400;
+  }
+
+  .input-label {
+    @apply block text-label text-coffee mb-1.5 font-medium;
+  }
+
+  /* ===== Select Field ===== */
+  .select-field {
+    @apply input-field appearance-none cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238B5A2B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 40px;
+  }
+
+  /* ===== Buttons ===== */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2
+           px-6 py-3 rounded-card font-semibold text-body
+           transition-all duration-200 cursor-pointer
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+  }
+
+  .btn-primary {
+    @apply btn bg-kraft text-white shadow-button;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-kraft-light;
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-cta {
+    @apply btn bg-postal text-white shadow-button;
+  }
+
+  .btn-cta:hover:not(:disabled) {
+    @apply bg-postal-dark;
+    transform: translateY(-1px);
+  }
+
+  .btn-cta:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .btn-outline {
+    @apply btn bg-transparent text-kraft;
+    border: 2px solid #8B5A2B;
+  }
+
+  .btn-outline:hover:not(:disabled) {
+    @apply bg-kraft text-white;
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-kraft;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    @apply bg-kraft/10;
+  }
+
+  /* ===== Status Badges ===== */
+  .badge {
+    @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold;
+  }
+
+  .badge-booked {
+    @apply badge;
+    background-color: rgba(30, 64, 175, 0.1);
+    color: #1E40AF;
+  }
+
+  .badge-picked-up {
+    @apply badge;
+    background-color: rgba(217, 119, 6, 0.1);
+    color: #D97706;
+  }
+
+  .badge-in-transit {
+    @apply badge;
+    background-color: rgba(220, 38, 38, 0.1);
+    color: #DC2626;
+  }
+
+  .badge-out-for-delivery {
+    @apply badge;
+    background-color: rgba(124, 58, 237, 0.1);
+    color: #7C3AED;
+  }
+
+  .badge-delivered {
+    @apply badge;
+    background-color: rgba(22, 101, 52, 0.1);
+    color: #166534;
+  }
+
+  /* ===== Loading Spinner ===== */
+  .spinner {
+    @apply inline-block w-5 h-5 rounded-full;
+    border: 2px solid #E8DCC8;
+    border-top-color: #8B5A2B;
+    animation: spin 0.6s linear infinite;
+  }
+
+  .spinner-sm {
+    @apply w-4 h-4;
+  }
+
+  .spinner-lg {
+    @apply w-8 h-8;
+    border-width: 3px;
+  }
+
+  /* ===== Skeleton Loading ===== */
+  .skeleton {
+    @apply rounded-input;
+    background: linear-gradient(
+      90deg,
+      #E8DCC8 25%,
+      #F0E6D6 37%,
+      #E8DCC8 63%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+  }
+
+  /* ===== Section Container ===== */
+  .section-container {
+    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ===== Page Container ===== */
+  .page-container {
+    @apply section-container py-8;
+    padding-top: calc(4.5rem + 2rem); /* navbar height + spacing */
+  }
+}
+
+/* ===== Animations ===== */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== Reduced Motion ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ===== Print Styles ===== */
+@media print {
+  body {
+    background: white !important;
+    background-image: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+
+  @page {
+    margin: 1cm;
+  }
+}
+
+.print-only {
+  display: none;
+}
+
+/* ===== Scrollbar Styling ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #FDF8F3;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #E8DCC8;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A67C52;
+}
