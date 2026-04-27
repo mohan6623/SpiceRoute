@@ -10,7 +10,7 @@ export default function Footer() {
           {/* Brand Column */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <img src="/logo.png" alt="SpiceRoute" className="w-10 h-10 object-contain brightness-200" />
+              <img src="/logo.png" alt="SpiceRoute" className="h-10 w-auto object-contain brightness-200" />
               <div>
                 <h3 className="text-white text-lg font-bold leading-tight">SpiceRoute</h3>
                 <p className="text-[0.625rem] text-white/40 tracking-wider uppercase">India Post Booking</p>
