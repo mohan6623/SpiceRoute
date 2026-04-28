@@ -1,12 +1,16 @@
 import { Server, Socket } from 'socket.io'
 import { getAIResponse, ConversationTurn } from '../services/aiService'
 import { detectPromptInjection, RateLimiter } from '../utils/securityUtils'
+import { startLiveSession, sendAudioToLiveSession, closeLiveSession } from '../services/liveAIService'
 import { createClient } from '@supabase/supabase-js'
 
 const conversationHistory = new Map<string, ConversationTurn[]>()
 
 // Rate limiter: 10 messages per 60 seconds per socket (applies to all users)
 const rateLimiter = new RateLimiter(10, 60_000)
+
+// Max conversation history turns to prevent unbounded memory growth
+const MAX_HISTORY_TURNS = 20
 
 // Supabase admin client for server-side JWT validation (per Supabase skill guidelines)
 const supabaseAdmin = createClient(
@@ -33,15 +37,43 @@ async function getVerifiedUser(token?: string): Promise<{ id: string; name?: str
   }
 }
 
+/**
+ * Wraps getVerifiedUser with a timeout to prevent a slow/failing Supabase
+ * auth.getUser() call from hanging the voice_start handler indefinitely.
+ * Falls back to treating the user as unauthenticated on timeout.
+ */
+async function getVerifiedUserWithTimeout(
+  token?: string,
+  timeoutMs = 3000
+): Promise<{ id: string; name?: string } | undefined> {
+  if (!token) return undefined
+  return Promise.race([
+    getVerifiedUser(token),
+    new Promise<undefined>((resolve) =>
+      setTimeout(() => {
+        console.warn(`⚠️ getVerifiedUser timed out after ${timeoutMs}ms — treating as unauthenticated`)
+        resolve(undefined)
+      }, timeoutMs)
+    ),
+  ])
+}
+
 export const registerChatHandlers = (io: Server, socket: Socket) => {
   // Verify the JWT on connect — never trust the raw userId from the client
   const getUserInfo = async (): Promise<{ id: string; name?: string } | undefined> => {
     const token = socket.handshake.auth.token as string | undefined
-    return getVerifiedUser(token)
+    // Use timeout variant to prevent slow Supabase auth calls from hanging handlers
+    return getVerifiedUserWithTimeout(token)
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  //  TEXT CHAT EVENTS (existing, unchanged)
+  // ═══════════════════════════════════════════════════════════════
+
   socket.on('session_start', ({ sessionId }: { sessionId: string }) => {
-    conversationHistory.set(sessionId, [])
+    if (!conversationHistory.has(sessionId)) {
+      conversationHistory.set(sessionId, [])
+    }
     socket.emit('status', { state: 'idle' })
     console.log(`Session started: ${sessionId} for socket: ${socket.id}`)
   })
@@ -78,7 +110,13 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
       socket.emit('status', { state: 'processing' })
       console.log(`📨 Received message in session ${sessionId}: "${text.slice(0, 80)}"`)
 
-      const history = conversationHistory.get(sessionId) || []
+      let history = conversationHistory.get(sessionId) || []
+
+      // ── History Truncation: keep last N turns to prevent memory growth ──
+      if (history.length > MAX_HISTORY_TURNS * 2) {
+        history = history.slice(-MAX_HISTORY_TURNS * 2)
+        conversationHistory.set(sessionId, history)
+      }
 
       // ── Security Gate 3: JWT Verification (Supabase skill) ─────
       const userInfo = await getUserInfo()
@@ -106,5 +144,59 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
   socket.on('session_end', ({ sessionId }: { sessionId: string }) => {
     conversationHistory.delete(sessionId)
     console.log(`Session ended: ${sessionId}`)
+  })
+
+  // ═══════════════════════════════════════════════════════════════
+  //  VOICE EVENTS (Gemini Live API)
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * voice_start: Client requests to start a voice session.
+   * Opens a persistent Gemini Live WebSocket connection.
+   */
+  socket.on('voice_start', async () => {
+    console.log(`🎙️ Voice start requested from socket: ${socket.id}`)
+
+    // Rate limit voice sessions too
+    if (rateLimiter.isRateLimited(socket.id)) {
+      socket.emit('voice_error', { message: 'Too many requests. Please wait a moment.' })
+      return
+    }
+
+    try {
+      const userInfo = await getUserInfo()
+      console.log(`🎙️ [voice_start] User authenticated: ${userInfo ? `✅ ${userInfo.name || userInfo.id}` : '❌ anonymous'}`)
+      await startLiveSession(socket, userInfo)
+    } catch (error) {
+      console.error(`❌ [voice_start] Unexpected error for socket ${socket.id}:`, error)
+      socket.emit('voice_error', { message: 'Could not start voice. Please try again.' })
+    }
+  })
+
+  /**
+   * voice_audio: Client sends a chunk of PCM audio from the microphone.
+   * Forwarded directly to the Gemini Live session.
+   */
+  socket.on('voice_audio', ({ data, mimeType }: { data: string; mimeType?: string }) => {
+    sendAudioToLiveSession(socket.id, data, mimeType || 'audio/pcm;rate=16000')
+  })
+
+  /**
+   * voice_stop: Client requests to stop voice mode.
+   * Closes the Gemini Live session.
+   */
+  socket.on('voice_stop', async () => {
+    console.log(`🔇 Voice stop requested from socket: ${socket.id}`)
+    await closeLiveSession(socket.id)
+  })
+
+  // ═══════════════════════════════════════════════════════════════
+  //  CLEANUP
+  // ═══════════════════════════════════════════════════════════════
+
+  socket.on('disconnect', async () => {
+    // Clean up voice session on disconnect
+    await closeLiveSession(socket.id)
+    console.log(`🔌 Socket disconnected, cleaned up voice session: ${socket.id}`)
   })
 }

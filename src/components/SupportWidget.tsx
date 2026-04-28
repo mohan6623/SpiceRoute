@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageCircle, X, Send, User, Bot, Loader2, Keyboard } from 'lucide-react'
+import { X, User, Loader2, Keyboard } from 'lucide-react'
 import { getSocket } from '../lib/socketClient'
 import { useAuth } from '../context/AuthContext'
+import ReactMarkdown from 'react-markdown'
 
 interface Message {
   id: string
@@ -11,16 +12,89 @@ interface Message {
 
 type VoiceState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error' | 'disconnected'
 
-// Gemini-style voice icon
-function GeminiVoiceIcon({ className = '' }: { className?: string }) {
+// Waveform voice icon matching the app theme
+function VoiceWaveIcon({ className = '' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2C12 2 8 6 8 12s4 10 4 10" />
-      <path d="M12 2c0 0 4 4 4 10s-4 10-4 10" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14" />
+      <path d="M8 9v6" />
+      <path d="M16 9v6" />
+      <path d="M4 11v2" />
+      <path d="M20 11v2" />
     </svg>
   )
 }
+
+// Animated Support Girl Mascot (Warm & Welcoming)
+function SupportGirlIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <style>
+        {`
+          @keyframes blink {
+            0%, 94%, 98%, 100% { transform: scaleY(1); }
+            96% { transform: scaleY(0.1); }
+          }
+          .eye-left { transform-origin: 10px 11.5px; animation: blink 4s infinite; }
+          .eye-right { transform-origin: 14px 11.5px; animation: blink 4s infinite; }
+        `}
+      </style>
+      
+      {/* Hair back */}
+      <path d="M5 12c0-5 3-9 7-9s7 4 7 9v4c0 1.5-1 3-3 3H8c-2 0-3-1.5-3-3v-4z" fill="#452719" />
+      
+      {/* Face/Skin */}
+      <circle cx="12" cy="12" r="5.5" fill="#fcdbb6" />
+      
+      {/* Hair front/bangs */}
+      <path d="M6.5 10c1-3 3-5 5.5-5s4.5 2 5.5 5c-1.5-1-3.5-1.5-5.5-1.5S7.5 9 6.5 10z" fill="#452719" />
+      
+      {/* Blush */}
+      <circle cx="8.5" cy="13.5" r="1" fill="#fca5a5" opacity="0.6"/>
+      <circle cx="15.5" cy="13.5" r="1" fill="#fca5a5" opacity="0.6"/>
+      
+      {/* Eyes (big, friendly) */}
+      <circle className="eye-left" cx="10" cy="11.5" r="1" fill="#2d1b11"/>
+      <circle className="eye-right" cx="14" cy="11.5" r="1" fill="#2d1b11"/>
+      
+      {/* Smile */}
+      <path d="M10.5 14.5a2 2 0 0 0 3 0" stroke="#c2410c" strokeWidth="1" strokeLinecap="round"/>
+      
+      {/* Headset Arc */}
+      <path d="M4.5 12.5V9.5a7.5 7.5 0 0 1 15 0v3" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
+      
+      {/* Earpieces */}
+      <rect x="3" y="10.5" width="2.5" height="5" rx="1.25" fill="#475569" />
+      <rect x="18.5" y="10.5" width="2.5" height="5" rx="1.25" fill="#475569" />
+      
+      {/* Mic */}
+      <path d="M19.5 14.5v1a2 2 0 0 1-2 2h-1.5" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="15" cy="17.5" r="1.5" fill="#475569"/>
+    </svg>
+  )
+}
+
+// Custom Send Icon matching the parcel theme
+function ParcelSendIcon({ className = '' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {/* Speed lines */}
+      <path d="M2 12h4" />
+      <path d="M0 16h6" />
+      <path d="M4 8h2" />
+      {/* Box */}
+      <path d="M10 21V10a2 2 0 0 1 1-1.73l6-3.5a2 2 0 0 1 2 0l4 2.3A2 2 0 0 1 24 8.8v8.4a2 2 0 0 1-1 1.73l-6 3.5a2 2 0 0 1-2 0l-4-2.3A2 2 0 0 1 10 18.4" />
+      <path d="M10.5 8.5L18 13l7.5-4.5" />
+      <path d="M18 22V13" />
+    </svg>
+  )
+}
+
+const SUGGESTIONS = [
+  "🔍 Find my order",
+  "📦 What is Express Parcel?",
+  "⏱️ How long does Speed Post take?"
+]
 
 export default function SupportWidget() {
   const { user, session } = useAuth()
@@ -43,6 +117,8 @@ export default function SupportWidget() {
   const currentUserMsgIdRef = useRef<string | null>(null)
   const currentModelMsgIdRef = useRef<string | null>(null)
   const sessionIdRef = useRef(Math.random().toString(36).substring(7))
+  // Always holds the latest access token — used in startMicCapture to avoid stale closures
+  const sessionTokenRef = useRef<string | undefined>(undefined)
   // Track if initial welcome has been shown
   const hasShownWelcomeRef = useRef(false)
 
@@ -60,6 +136,8 @@ export default function SupportWidget() {
   useEffect(() => {
     if (!isOpen) return
     const token = session?.access_token
+    // Keep ref in sync so startMicCapture's onaudioprocess always uses the current token
+    sessionTokenRef.current = token
     const socket = getSocket(token)
     if (!socket.connected) socket.connect()
 
@@ -239,7 +317,11 @@ export default function SupportWidget() {
         const u8 = new Uint8Array(int16.buffer)
         let binary = ''
         for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i])
-        getSocket(session?.access_token).emit('voice_audio', { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' })
+        // Use sessionTokenRef (not session from closure) to always get the live token.
+        // Using session?.access_token here would be a stale closure — it would be frozen
+        // at the value when startMicCapture was created (often undefined), causing
+        // getSocket() to see a token mismatch and disconnect the authenticated socket.
+        getSocket(sessionTokenRef.current).emit('voice_audio', { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' })
       }
       source.connect(processor)
       processor.connect(ctx.destination)
@@ -248,7 +330,7 @@ export default function SupportWidget() {
       setIsVoiceMode(false)
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ Microphone permission denied. Please allow microphone access or continue with text chat.' }])
     }
-  }, [session?.access_token])
+  }, [])
 
   const stopMicCapture = useCallback(() => {
     mediaStreamRef.current?.getTracks().forEach(t => t.stop())
@@ -307,10 +389,15 @@ export default function SupportWidget() {
     getSocket(session?.access_token).emit('text_message', { text, sessionId: sessionIdRef.current })
   }
 
+  const handleSuggestionClick = (text: string) => {
+    if (isProcessing) return
+    // Remove emojis from the beginning of the text when sending to AI
+    const cleanText = text.replace(/^[^\w\s]+/, '').trim()
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: cleanText }])
+    getSocket(session?.access_token).emit('text_message', { text: cleanText, sessionId: sessionIdRef.current })
+  }
+
   // ── Styles ──
-  const avatarClass = (role: 'user' | 'model') =>
-    'w-8 h-8 rounded-full flex items-center justify-center shrink-0 ' +
-    (role === 'user' ? 'bg-postal/10 text-postal' : 'bg-kraft/10 text-kraft')
   const bubbleClass = (role: 'user' | 'model') =>
     'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ' +
     (role === 'user' ? 'bg-postal text-white rounded-tr-none' : 'bg-white text-coffee-light border border-paper-border rounded-tl-none')
@@ -341,9 +428,9 @@ export default function SupportWidget() {
         <div className="w-80 sm:w-96 h-[500px] max-h-[80vh] bg-paper-surface rounded-2xl shadow-kraft-lg border-2 border-kraft overflow-hidden flex flex-col mb-4 animate-fade-in">
           {/* Header */}
           <div className="bg-kraft text-white p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bot className="w-5 h-5" />
-              <h3 className="font-semibold text-sm">SpiceRoute Support AI</h3>
+            <div className="flex items-center gap-3">
+              <SupportGirlIcon className="w-6 h-6" />
+              <h3 className="font-semibold text-sm">SpiceRoute Support</h3>
               {isVoiceMode && <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">🎙️ Live</span>}
             </div>
             <button onClick={handleClose} className="text-white/80 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
@@ -353,18 +440,62 @@ export default function SupportWidget() {
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-paper">
             {messages.map((msg) => (
               <div key={msg.id} className={'flex gap-3 ' + (msg.role === 'user' ? 'flex-row-reverse' : '')}>
-                <div className={avatarClass(msg.role)}>
-                  {msg.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                {msg.role === 'user' ? (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-postal/10 text-postal overflow-hidden">
+                    {user?.user_metadata?.avatar_url ? (
+                      <img src={user.user_metadata.avatar_url} alt="User avatar" className="w-full h-full object-cover" />
+                    ) : userName ? (
+                      <span className="text-sm font-bold">{userName.charAt(0).toUpperCase()}</span>
+                    ) : (
+                      <User className="w-4 h-4" />
+                    )}
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 bg-kraft/10 text-kraft">
+                    <SupportGirlIcon className="w-5 h-5" />
+                  </div>
+                )}
+                <div className={bubbleClass(msg.role)}>
+                  {msg.role === 'model' ? (
+                    <ReactMarkdown 
+                      components={{
+                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                        ul: ({node, ...props}) => <ul className="list-disc pl-4 mb-2" {...props} />,
+                        ol: ({node, ...props}) => <ol className="list-decimal pl-4 mb-2" {...props} />,
+                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                        strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                      }}
+                    >
+                      {msg.text}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.text
+                  )}
                 </div>
-                <div className={bubbleClass(msg.role)}>{msg.text}</div>
               </div>
             ))}
             {isProcessing && (
               <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-kraft/10 text-kraft flex items-center justify-center shrink-0"><Bot className="w-4 h-4" /></div>
+                <div className="w-8 h-8 rounded-full bg-kraft/10 text-kraft flex items-center justify-center shrink-0"><SupportGirlIcon className="w-5 h-5" /></div>
                 <div className="max-w-[75%] bg-white border border-paper-border rounded-2xl rounded-tl-none px-4 py-2.5 text-sm shadow-sm flex items-center gap-2 text-coffee-light/60">
                   <Loader2 className="w-4 h-4 animate-spin text-kraft" /> Thinking...
                 </div>
+              </div>
+            )}
+            
+            {/* Suggestions appear only after the welcome message, before any user messages */}
+            {messages.length === 1 && !isProcessing && !isVoiceMode && (
+              <div className="flex flex-col gap-2 mt-4 items-end mr-2">
+                {SUGGESTIONS.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="self-end text-right px-4 py-2 text-sm bg-postal/5 border border-postal/30 text-postal hover:bg-postal/10 hover:border-postal rounded-2xl rounded-tr-none shadow-sm transition-all animate-fade-in"
+                    style={{ animationDelay: `${idx * 100}ms` }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -408,13 +539,13 @@ export default function SupportWidget() {
                 <div className="absolute right-2">
                   {inputText.trim() ? (
                     <button type="submit" disabled={isProcessing} className="w-9 h-9 flex items-center justify-center bg-kraft hover:bg-kraft-light text-white rounded-full transition-colors disabled:opacity-50 disabled:bg-gray-300">
-                      <Send className="w-4 h-4" />
+                      <ParcelSendIcon className="w-5 h-5 mr-0.5" />
                     </button>
                   ) : (
                     <button type="button" onClick={toggleVoiceMode} disabled={isProcessing || micPermission === 'denied'}
-                      className="w-9 h-9 flex items-center justify-center bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white rounded-full transition-all hover:scale-110 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-md"
-                      title={micPermission === 'denied' ? 'Mic access denied' : 'Start Gemini Live voice'}>
-                      <GeminiVoiceIcon className="w-5 h-5" />
+                      className="w-9 h-9 flex items-center justify-center bg-kraft hover:bg-kraft-light text-white rounded-full transition-all hover:scale-110 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-md"
+                      title={micPermission === 'denied' ? 'Mic access denied' : 'Start Live Voice'}>
+                      <VoiceWaveIcon className="w-5 h-5" />
                     </button>
                   )}
                 </div>
@@ -425,8 +556,16 @@ export default function SupportWidget() {
       )}
 
       <button onClick={() => isOpen ? handleClose() : setIsOpen(true)}
-        className={'w-14 h-14 rounded-full flex items-center justify-center shadow-kraft-lg text-white transition-transform hover:scale-105 active:scale-95 ' + (isOpen ? 'bg-coffee' : 'bg-kraft')}>
-        {isOpen ? <X className="w-6 h-6" /> : <MessageCircle className="w-6 h-6" />}
+        className={'h-14 rounded-full flex items-center justify-center shadow-kraft-lg text-white transition-all hover:scale-105 active:scale-95 px-5 gap-2 ' + (isOpen ? 'bg-coffee' : 'bg-kraft')}>
+        {isOpen ? (
+          <X className="w-6 h-6" />
+        ) : (
+          <>
+            {/* Made the icon significantly larger (w-9 h-9 instead of w-6 h-6) */}
+            <SupportGirlIcon className="w-9 h-9 drop-shadow-sm" />
+            <span className="font-semibold text-sm pr-1">Support</span>
+          </>
+        )}
       </button>
     </div>
   )
