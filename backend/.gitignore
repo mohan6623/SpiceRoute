@@ -2,3 +2,10 @@ node_modules/
 dist/
 .env
 *.js.map
+
+# Test output artifacts
+test-output*.txt
+
+# OS
+.DS_Store
+Thumbs.db
