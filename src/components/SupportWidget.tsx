@@ -77,7 +77,7 @@ function SupportGirlIcon({ className = '' }: { className?: string }) {
 // Custom Send Icon matching the parcel theme
 function ParcelSendIcon({ className = '' }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg className={className} viewBox="-2 -2 28 28" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       {/* Speed lines */}
       <path d="M2 12h4" />
       <path d="M0 16h6" />
@@ -539,7 +539,7 @@ export default function SupportWidget() {
                 <div className="absolute right-2">
                   {inputText.trim() ? (
                     <button type="submit" disabled={isProcessing} className="w-9 h-9 flex items-center justify-center bg-kraft hover:bg-kraft-light text-white rounded-full transition-colors disabled:opacity-50 disabled:bg-gray-300">
-                      <ParcelSendIcon className="w-5 h-5 mr-0.5" />
+                      <ParcelSendIcon className="w-5 h-5" />
                     </button>
                   ) : (
                     <button type="button" onClick={toggleVoiceMode} disabled={isProcessing || micPermission === 'denied'}
