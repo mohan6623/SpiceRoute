@@ -12,7 +12,7 @@ export const getSocket = (token?: string): Socket => {
 
   if (!socket) {
     currentToken = token
-    socket = io(import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001', {
+    socket = io(import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_WEBSOCKET_URL || 'http://localhost:3001', {
       transports: ['websocket'],
       autoConnect: false,
       auth: {
