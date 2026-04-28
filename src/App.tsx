@@ -13,7 +13,7 @@ import TrackParcel from './pages/TrackParcel'
 import MyBookings from './pages/MyBookings'
 import AdminDashboard from './pages/AdminDashboard'
 import Login from './pages/Login'
-
+import SupportWidget from './components/SupportWidget'
 export default function App() {
   return (
     <AuthProvider>
@@ -67,6 +67,7 @@ export default function App() {
             </Routes>
           </main>
           <Footer />
+          <SupportWidget />
         </div>
       </div>
     </AuthProvider>
