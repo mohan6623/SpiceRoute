@@ -248,7 +248,7 @@ export default function SupportWidget() {
       setIsVoiceMode(false)
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ Microphone permission denied. Please allow microphone access or continue with text chat.' }])
     }
-  }, [])
+  }, [session?.access_token])
 
   const stopMicCapture = useCallback(() => {
     mediaStreamRef.current?.getTracks().forEach(t => t.stop())
