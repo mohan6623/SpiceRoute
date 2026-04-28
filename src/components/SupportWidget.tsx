@@ -11,7 +11,7 @@ interface Message {
 
 type VoiceState = 'idle' | 'connecting' | 'listening' | 'speaking' | 'error' | 'disconnected'
 
-// Gemini-style voice icon (sparkle/wave)
+// Gemini-style voice icon
 function GeminiVoiceIcon({ className = '' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -39,23 +39,35 @@ export default function SupportWidget() {
   const audioQueueRef = useRef<Float32Array[]>([])
   const isPlayingRef = useRef(false)
   const voiceReadyRef = useRef(false)
-  const currentTranscriptRef = useRef<{ user: string; model: string }>({ user: '', model: '' })
+  // Track the current voice turn's message ID so each turn is a separate bubble
+  const currentUserMsgIdRef = useRef<string | null>(null)
+  const currentModelMsgIdRef = useRef<string | null>(null)
   const sessionIdRef = useRef(Math.random().toString(36).substring(7))
+  // Track if initial welcome has been shown
+  const hasShownWelcomeRef = useRef(false)
 
-  const welcomeMessage = user?.user_metadata?.full_name
-    ? `Hello ${user.user_metadata.full_name.split(' ')[0]}! I'm the SpiceRoute Support AI. How can I help you today?`
+  const userName = user?.user_metadata?.full_name || user?.user_metadata?.name || user?.email?.split('@')[0]
+  const welcomeMessage = userName
+    ? `Hello ${userName.split(' ')[0]}! I'm the SpiceRoute Support AI. How can I help you today?`
     : 'Hello! I am the SpiceRoute Support AI. How can I help you today?'
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // ── Socket connection effect ──
+  // Only reconnects socket when auth changes, does NOT wipe messages
   useEffect(() => {
     if (!isOpen) return
     const token = session?.access_token
     const socket = getSocket(token)
     if (!socket.connected) socket.connect()
-    setMessages([{ id: 'welcome', role: 'model', text: welcomeMessage }])
+
+    // Show welcome message only on first open (not on auth change)
+    if (!hasShownWelcomeRef.current) {
+      setMessages([{ id: 'welcome', role: 'model', text: welcomeMessage }])
+      hasShownWelcomeRef.current = true
+    }
 
     const handleConnect = () => socket.emit('session_start', { sessionId: sessionIdRef.current })
     const handleStatus = ({ state }: { state: string }) => setIsProcessing(state === 'processing')
@@ -68,36 +80,68 @@ export default function SupportWidget() {
       setVoiceState('listening')
     }
     const handleVoiceStatus = ({ state }: { state: string }) => setVoiceState(state as VoiceState)
+
+    // ── Transcript handler: each turn = separate message bubble ──
     const handleVoiceTranscript = ({ role, text }: { role: 'user' | 'model'; text: string }) => {
       if (!text?.trim()) return
+
       if (role === 'user') {
-        currentTranscriptRef.current.user += text
-        const full = currentTranscriptRef.current.user.trim()
-        if (full) setMessages(prev => {
-          const last = prev[prev.length - 1]
-          if (last?.role === 'user' && last.id.startsWith('v-u-')) return [...prev.slice(0, -1), { ...last, text: full }]
-          return [...prev, { id: `v-u-${Date.now()}`, role: 'user', text: full }]
+        setMessages(prev => {
+          const msgId = currentUserMsgIdRef.current
+          if (msgId) {
+            // Append to current user turn's bubble
+            const idx = prev.findIndex(m => m.id === msgId)
+            if (idx !== -1) {
+              const updated = [...prev]
+              updated[idx] = { ...updated[idx], text: updated[idx].text + text }
+              return updated
+            }
+          }
+          // Start a new user bubble for this turn
+          const newId = `v-u-${Date.now()}`
+          currentUserMsgIdRef.current = newId
+          return [...prev, { id: newId, role: 'user', text: text.trim() }]
         })
       } else {
-        currentTranscriptRef.current.model += text
-        const full = currentTranscriptRef.current.model.trim()
-        if (full) setMessages(prev => {
-          const last = prev[prev.length - 1]
-          if (last?.role === 'model' && last.id.startsWith('v-m-')) return [...prev.slice(0, -1), { ...last, text: full }]
-          return [...prev, { id: `v-m-${Date.now()}`, role: 'model', text: full }]
+        setMessages(prev => {
+          const msgId = currentModelMsgIdRef.current
+          if (msgId) {
+            // Append to current model turn's bubble
+            const idx = prev.findIndex(m => m.id === msgId)
+            if (idx !== -1) {
+              const updated = [...prev]
+              updated[idx] = { ...updated[idx], text: updated[idx].text + text }
+              return updated
+            }
+          }
+          // Start a new model bubble for this turn
+          const newId = `v-m-${Date.now()}`
+          currentModelMsgIdRef.current = newId
+          return [...prev, { id: newId, role: 'model', text: text.trim() }]
         })
       }
     }
+
     const handleVoiceAudioOut = ({ data, mimeType }: { data: string; mimeType: string }) => {
       playAudioChunk(data, mimeType)
       setVoiceState('speaking')
     }
+
+    // Barge-in: user interrupted the AI
     const handleVoiceInterrupted = () => {
       audioQueueRef.current = []
       isPlayingRef.current = false
-      // Reset transcript accumulators for new turn
-      currentTranscriptRef.current = { user: '', model: '' }
+      // Reset turn IDs so next transcript starts a new bubble
+      currentUserMsgIdRef.current = null
+      currentModelMsgIdRef.current = null
     }
+
+    // Turn complete: AI finished speaking, reset for next turn
+    const handleTurnComplete = () => {
+      currentUserMsgIdRef.current = null
+      currentModelMsgIdRef.current = null
+    }
+
     const handleVoiceError = ({ message }: { message: string }) => {
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: '⚠️ ' + message }])
       setVoiceState('error')
@@ -112,10 +156,19 @@ export default function SupportWidget() {
     socket.on('voice_transcript', handleVoiceTranscript)
     socket.on('voice_audio_out', handleVoiceAudioOut)
     socket.on('voice_interrupted', handleVoiceInterrupted)
+    socket.on('voice_turn_complete', handleTurnComplete)
     socket.on('voice_error', handleVoiceError)
     if (socket.connected) handleConnect()
 
     return () => {
+      // If voice was active, stop it because socket is about to change
+      if (isVoiceMode) {
+        socket.emit('voice_stop')
+        stopMicCapture()
+        setIsVoiceMode(false)
+        setVoiceState('idle')
+        voiceReadyRef.current = false
+      }
       socket.off('connect', handleConnect)
       socket.off('status', handleStatus)
       socket.off('ai_text', handleAiText)
@@ -125,6 +178,7 @@ export default function SupportWidget() {
       socket.off('voice_transcript', handleVoiceTranscript)
       socket.off('voice_audio_out', handleVoiceAudioOut)
       socket.off('voice_interrupted', handleVoiceInterrupted)
+      socket.off('voice_turn_complete', handleTurnComplete)
       socket.off('voice_error', handleVoiceError)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,7 +229,6 @@ export default function SupportWidget() {
       const processor = ctx.createScriptProcessor(4096, 1, 1)
       processorRef.current = processor
       processor.onaudioprocess = (e) => {
-        // Only send if Gemini session is ready
         if (!voiceReadyRef.current) return
         const input = e.inputBuffer.getChannelData(0)
         const int16 = new Int16Array(input.length)
@@ -186,7 +239,7 @@ export default function SupportWidget() {
         const u8 = new Uint8Array(int16.buffer)
         let binary = ''
         for (let i = 0; i < u8.length; i++) binary += String.fromCharCode(u8[i])
-        getSocket().emit('voice_audio', { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' })
+        getSocket(session?.access_token).emit('voice_audio', { data: btoa(binary), mimeType: 'audio/pcm;rate=16000' })
       }
       source.connect(processor)
       processor.connect(ctx.destination)
@@ -209,37 +262,41 @@ export default function SupportWidget() {
     audioQueueRef.current = []
     isPlayingRef.current = false
     voiceReadyRef.current = false
+    currentUserMsgIdRef.current = null
+    currentModelMsgIdRef.current = null
   }, [])
 
   // ── Voice Toggle ──
   const toggleVoiceMode = useCallback(async () => {
-    const socket = getSocket()
+    const socket = getSocket(session?.access_token)
     if (isVoiceMode) {
       socket.emit('voice_stop')
       stopMicCapture()
       setIsVoiceMode(false)
       setVoiceState('idle')
-      currentTranscriptRef.current = { user: '', model: '' }
     } else {
       setIsVoiceMode(true)
       setVoiceState('connecting')
       voiceReadyRef.current = false
-      currentTranscriptRef.current = { user: '', model: '' }
+      currentUserMsgIdRef.current = null
+      currentModelMsgIdRef.current = null
       await startMicCapture()
       socket.emit('voice_start')
     }
-  }, [isVoiceMode, startMicCapture, stopMicCapture])
+  }, [isVoiceMode, startMicCapture, stopMicCapture, session?.access_token])
 
   const handleClose = useCallback(() => {
     if (isVoiceMode) {
-      getSocket().emit('voice_stop')
+      getSocket(session?.access_token).emit('voice_stop')
       stopMicCapture()
       setIsVoiceMode(false)
       setVoiceState('idle')
     }
-    getSocket().emit('session_end', { sessionId: sessionIdRef.current })
+    getSocket(session?.access_token).emit('session_end', { sessionId: sessionIdRef.current })
     setIsOpen(false)
-  }, [isVoiceMode, stopMicCapture])
+    // Reset so next open gets a fresh welcome
+    hasShownWelcomeRef.current = false
+  }, [isVoiceMode, stopMicCapture, session?.access_token])
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault()
@@ -247,7 +304,7 @@ export default function SupportWidget() {
     const text = inputText.trim()
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text }])
     setInputText('')
-    getSocket().emit('text_message', { text, sessionId: sessionIdRef.current })
+    getSocket(session?.access_token).emit('text_message', { text, sessionId: sessionIdRef.current })
   }
 
   // ── Styles ──
@@ -320,22 +377,10 @@ export default function SupportWidget() {
                 <div className="flex items-center gap-3 w-full justify-center py-1">
                   <div className="flex items-center gap-1">
                     {(voiceState === 'listening' || voiceState === 'connecting') && (
-                      <>
-                        <span className="w-1.5 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-3 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-4 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
-                        <span className="w-1.5 h-3 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
-                        <span className="w-1.5 h-2 bg-green-500 rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                      </>
+                      <>{[0, 150, 300, 150, 0].map((d, i) => <span key={i} className={`w-1.5 rounded-full animate-pulse bg-green-500`} style={{ height: `${8 + (i === 2 ? 8 : i === 1 || i === 3 ? 4 : 0)}px`, animationDelay: `${d}ms` }} />)}</>
                     )}
                     {voiceState === 'speaking' && (
-                      <>
-                        <span className="w-1.5 h-2 bg-kraft rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                        <span className="w-1.5 h-4 bg-kraft rounded-full animate-pulse" style={{ animationDelay: '100ms' }} />
-                        <span className="w-1.5 h-6 bg-kraft rounded-full animate-pulse" style={{ animationDelay: '200ms' }} />
-                        <span className="w-1.5 h-4 bg-kraft rounded-full animate-pulse" style={{ animationDelay: '100ms' }} />
-                        <span className="w-1.5 h-2 bg-kraft rounded-full animate-pulse" style={{ animationDelay: '0ms' }} />
-                      </>
+                      <>{[0, 100, 200, 100, 0].map((d, i) => <span key={i} className={`w-1.5 rounded-full animate-pulse bg-kraft`} style={{ height: `${8 + (i === 2 ? 16 : i === 1 || i === 3 ? 8 : 0)}px`, animationDelay: `${d}ms` }} />)}</>
                     )}
                     {(voiceState === 'error' || voiceState === 'disconnected' || voiceState === 'idle') && (
                       <>{[...Array(5)].map((_, i) => <span key={i} className="w-1.5 h-2 bg-gray-300 rounded-full" />)}</>
