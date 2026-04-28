@@ -285,7 +285,7 @@ export default function SupportWidget() {
     isPlayingRef.current = true
     const chunk = audioQueueRef.current.shift()!
     const buf = ctx.createBuffer(1, chunk.length, 24000)
-    buf.copyToChannel(chunk, 0)
+    buf.getChannelData(0).set(chunk)
     const src = ctx.createBufferSource()
     src.buffer = buf
     src.connect(ctx.destination)
