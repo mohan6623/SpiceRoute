@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
-import type { User } from '@supabase/supabase-js'
+import type { User, Session } from '@supabase/supabase-js'
 import * as auth from '../lib/authService'
 
 interface AuthContextType {
   user: User | null
+  session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<string | null>
   signUp: (email: string, password: string) => Promise<string | null>
@@ -15,18 +16,21 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Get initial user
-    auth.getCurrentUser().then((u) => {
+    // Get initial user and session
+    Promise.all([auth.getCurrentUser(), auth.getSession()]).then(([u, s]) => {
       setUser(u)
+      setSession(s)
       setLoading(false)
     })
 
     // Subscribe to changes
-    const subscription = auth.onAuthStateChange((u) => {
+    const subscription = auth.onAuthStateChange((u, s) => {
       setUser(u)
+      setSession(s)
       setLoading(false)
     })
 
@@ -46,12 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const handleSignOut = useCallback(async () => {
     await auth.signOut()
     setUser(null)
+    setSession(null)
   }, [])
 
   return (
     <AuthContext.Provider
       value={{
         user,
+        session,
         loading,
         signIn: handleSignIn,
         signUp: handleSignUp,

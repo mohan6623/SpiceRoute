@@ -47,10 +47,10 @@ export async function getCurrentUser(): Promise<User | null> {
 
 /** Subscribe to auth state changes */
 export function onAuthStateChange(
-  callback: (user: User | null) => void
+  callback: (user: User | null, session: Session | null) => void
 ) {
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    callback(session?.user ?? null)
+    callback(session?.user ?? null, session ?? null)
   })
   return data.subscription
 }
